@@ -53,16 +53,17 @@ func (l *Lexer) IsIdent() bool {
 }
 
 func (l *Lexer) LineStr() string {
-	line := ""
+	var line strings.Builder
+	line.WriteString(l.GetText())
 	for {
 		next := l.s.Next()
 		if next == '\n' || next == scanner.EOF {
-			l.Next() //go to next line
+			//l.Next() //go to next line
 			break
 		}
-		line += string(next)
+		line.WriteRune(next)
 	}
-	return line
+	return line.String()
 }
 
 func (l *Lexer) Pos() Position {

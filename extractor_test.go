@@ -1,6 +1,7 @@
 package extractor
 
 import (
+	"regexp"
 	"testing"
 )
 
@@ -50,17 +51,49 @@ func TestEx(t *testing.T) {
 	}
 }
 
-func TestSeq(t *testing.T) {
+func TestExLine(t *testing.T) {
+	var l *Lexer
+	l = InitLexer("abc abcd\n cced\n")
+	var result string
+	if ExLine(&result)(l) == false || result != "abc abcd" {
+		t.Fatalf("ExLine(result) should get abc abcd, but actual: %v", result)
+	}
+	if ExLine(&result)(l) == false || result != "cced" {
+		t.Fatalf("ExLine(result) should get cced, but actual: %v", result)
+	}
+
+	l = InitLexer("abc dd")
+	if ASkip("abc")(l) && ExLine(&result)(l) == false || result != "dd" {
+		t.Fatalf("Ex(result) should get dd, but actual: %v", result)
+	}
+}
+
+func TestAnd(t *testing.T) {
 	var l *Lexer
 	var result string
 	l = InitLexer("abc dd")
-	if Seq(ASkip("abc"), Ex(&result))(l) == false || result != "dd" {
+	if And(ASkip("abc"), Ex(&result))(l) == false || result != "dd" {
 		t.Fatalf("Ex(result) should get dd, but actual: %v", result)
 	}
 
 	//test seq with no skip before extra
 	l = InitLexer("abc dd")
-	if Seq(A("abc"), Ex(&result))(l) == false || result != "abc" {
+	if And(A("abc"), Ex(&result))(l) == false || result != "abc" {
+		t.Fatalf("Ex(result) should get abc, but actual: %v", result)
+	}
+}
+
+func TestOr(t *testing.T) {
+	var l *Lexer
+	var result string
+	l = InitLexer("abc dd")
+	if Or(ASkip("abc"), Ex(&result))(l) == false || result != "" {
+		t.Fatalf("Ex(result) should get empty string, but actual: %v", result)
+	}
+
+	//test seq with no skip before extra
+	l = InitLexer("abc dd")
+	if Or(ASkip("abcd"), Ex(&result))(l) == false || result != "abc" {
 		t.Fatalf("Ex(result) should get abc, but actual: %v", result)
 	}
 }
@@ -100,7 +133,7 @@ func TestManyWithEx(t *testing.T) {
 	var results []string
 	var exResults = func(l *Lexer) bool {
 		var result string
-		success := Seq(ASkip("{"), Ex(&result), ASkip("}"))(l)
+		success := And(ASkip("{"), Ex(&result), ASkip("}"))(l)
 		results = append(results, result)
 		return success
 	}
@@ -128,7 +161,7 @@ func TestExIs(t *testing.T) {
 
 	l = InitLexer("abb! ddd")
 
-	if Seq(ASkip("abb"), ExIs(&result, ASkip("!")), ASkip("ddd"))(l) == false {
+	if And(ASkip("abb"), ExIs(&result, ASkip("!")), ASkip("ddd"))(l) == false {
 		t.Fatalf("Seq(ASkip(abb), ExIs(&result,!), ASkip(ddd) should return true for 'abb! ddd'")
 	}
 
@@ -138,11 +171,29 @@ func TestExIs(t *testing.T) {
 
 	l = InitLexer("abb ddd")
 
-	if Seq(ASkip("abb"), ExIs(&result, ASkip("!")), ASkip("ddd"))(l) == false {
+	if And(ASkip("abb"), ExIs(&result, ASkip("!")), ASkip("ddd"))(l) == false {
 		t.Fatalf("Seq(ASkip(abb), ExIs(&result,!), ASkip(ddd) should return true for 'abb! ddd'")
 	}
 
 	if result == true {
 		t.Fatalf("Result of ExIs should be fase")
+	}
+}
+
+func BenchmarkExtract(b *testing.B) {
+	var l *Lexer
+	for i := 0; i < b.N; i++ {
+		l = InitLexer("abc(dd)")
+		l.GetText()
+		//var result string
+		//_ = ASkip("abc")(l) //&& ASkip("(")(l) && Ex(&result)(l)
+	}
+}
+
+func BenchmarkRegexp(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		rgx := regexp.MustCompile(`abc\((.*?)\)`)
+		src := `abc(tag)`
+		_ = rgx.FindStringSubmatch(src)
 	}
 }
