@@ -104,7 +104,7 @@ func Or(ops ...Op) Op {
 				return true
 			}
 		}
-		return true
+		return false
 	}
 }
 
